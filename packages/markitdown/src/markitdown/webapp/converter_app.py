@@ -312,7 +312,6 @@ C:\\Users\\**\\*.pptx"></textarea>
                 if (data.error) {
                     alert('Error: ' + data.error);
                 } else {
-                    document.getElementById('paths').value = '';
                     refreshStatus();
                 }
                 document.getElementById('convertBtn').disabled = false;
