@@ -274,6 +274,15 @@ def test_docx_equations() -> None:
     assert block_equations, "No block equations found in the document."
 
 
+def test_docx_image_alt_text() -> None:
+    markitdown = MarkItDown()
+    docx_file = os.path.join(TEST_FILES_DIR, "img_alt.docx")
+    result = markitdown.convert(docx_file)
+
+    assert "![My alt text](" in result.markdown
+
+
+
 def test_input_as_strings() -> None:
     markitdown = MarkItDown()
 
