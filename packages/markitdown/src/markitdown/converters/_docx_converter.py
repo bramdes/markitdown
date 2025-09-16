@@ -82,7 +82,9 @@ class DocxConverter(HtmlConverter):
                 _dependency_exc_info[2]
             )
 
-        style_map = kwargs.get("style_map", None)
+        # Enable comment conversion by default with superscript styling
+        default_style_map = "comment-reference => sup"
+        style_map = kwargs.get("style_map", default_style_map)
         pre_process_stream = pre_process_docx(file_stream)
         return self._html_converter.convert_string(
             mammoth.convert_to_html(pre_process_stream, style_map=style_map).value,
