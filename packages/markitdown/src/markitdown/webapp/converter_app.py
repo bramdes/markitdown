@@ -454,6 +454,10 @@ def convert():
             path = path.strip()
             if not path:
                 continue
+
+            # Remove quotes if the path starts and ends with them
+            if (path.startswith('"') and path.endswith('"')) or (path.startswith("'") and path.endswith("'")):
+                path = path[1:-1]
                 
             # Handle glob patterns
             if '*' in path or '?' in path:
