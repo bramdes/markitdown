@@ -117,10 +117,33 @@ def convert_file_to_markdown(input_file: str, output_file: Optional[str] = None)
     # Create a temporary file to avoid file locks
     temp_fd, temp_file = tempfile.mkstemp(suffix=resolved_input.suffix)
     os.close(temp_fd)
-    
+
     try:
-        # Copy the source file to temp location
-        shutil.copy2(resolved_input, temp_file)
+        # Try to copy the source file to temp location with retry logic
+        max_retries = 3
+        retry_delay = 0.5
+        for attempt in range(max_retries):
+            try:
+                shutil.copy2(resolved_input, temp_file)
+                break
+            except (IOError, OSError) as e:
+                if "being used by another process" in str(e) or "Permission denied" in str(e):
+                    if attempt < max_retries - 1:
+                        import time
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+                    else:
+                        # If all retries failed, try reading and writing manually
+                        try:
+                            with open(resolved_input, 'rb') as src:
+                                content = src.read()
+                            with open(temp_file, 'wb') as dst:
+                                dst.write(content)
+                        except Exception as read_error:
+                            return False, f"File is in use and cannot be accessed: {str(read_error)}"
+                else:
+                    raise
         
         # Build the header for the markdown file
         header = f"# File: {resolved_input.name}\n# Path: {resolved_input}\n\n"
