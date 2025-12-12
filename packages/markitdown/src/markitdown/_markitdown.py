@@ -611,7 +611,10 @@ class MarkItDown:
                     res.text_content = "\n".join(
                         [line.rstrip() for line in re.split(r"\r?\n", res.text_content)]
                     )
+                    # More aggressive cleanup: Remove multiple consecutive blank lines
                     res.text_content = re.sub(r"\n{3,}", "\n\n", res.text_content)
+                    # Also clean up spaces between newlines
+                    res.text_content = re.sub(r"\n\s*\n\s*\n", "\n\n", res.text_content)
                     return res
 
         # If we got this far without success, report any exceptions

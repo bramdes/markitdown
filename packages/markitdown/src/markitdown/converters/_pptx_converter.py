@@ -227,10 +227,37 @@ class PptxConverter(DocumentConverter):
             first_row = False
         html_table += "</table></body></html>"
 
-        return (
-            self._html_converter.convert_string(html_table, **kwargs).markdown.strip()
-            + "\n"
-        )
+        markdown_result = self._html_converter.convert_string(html_table, **kwargs).markdown.strip()
+
+        # Clean up empty table headers
+        markdown_result = self._clean_empty_table_headers(markdown_result)
+
+        return markdown_result + "\n"
+
+    def _clean_empty_table_headers(self, markdown_table):
+        """Remove empty table header rows and their separators."""
+        lines = markdown_table.split('\n')
+        cleaned_lines = []
+        i = 0
+
+        while i < len(lines):
+            line = lines[i].strip()
+
+            # Check if this is an empty header row (only pipes and spaces)
+            if line and all(c in '| ' for c in line):
+                # Check if the next line is a separator line
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+                    if next_line and all(c in '|-: ' for c in next_line):
+                        # This is an empty table header followed by separator
+                        # Skip both lines
+                        i += 2
+                        continue
+
+            cleaned_lines.append(lines[i])
+            i += 1
+
+        return '\n'.join(cleaned_lines)
 
     def _convert_chart_to_markdown(self, chart):
         try:
