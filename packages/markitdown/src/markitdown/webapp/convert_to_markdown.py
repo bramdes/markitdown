@@ -9,9 +9,44 @@ import sys
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
+
+
+DEFAULT_VISION_PROMPT = (
+    "Convert any visual content (diagrams, charts, tables, images) in this image "
+    "to its most appropriate text representation:\n"
+    "- Flowcharts, sequence diagrams, org charts, mind maps -> Mermaid syntax in a "
+    "```mermaid code block\n"
+    "- Charts and graphs with data -> markdown table\n"
+    "- Tables -> markdown table\n"
+    "- Other diagrams or images -> structured markdown description\n"
+    "Output only the converted content with no preamble or commentary. "
+    "If the image contains no meaningful visual content, output nothing."
+)
+
+
+def _build_llm_kwargs() -> dict:
+    """Build llm_client/llm_model/llm_prompt kwargs from environment variables.
+
+    Returns an empty dict when no OPENAI_MODEL is set, which disables vision
+    transcription throughout the pipeline.
+    """
+    model = os.environ.get("OPENAI_MODEL", "").strip()
+    if not model:
+        return {}
+    try:
+        from openai import OpenAI
+    except ImportError:
+        return {}
+
+    base_url = os.environ.get("OPENAI_BASE_URL", "").strip() or None
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip() or "not-needed"
+    prompt = os.environ.get("OPENAI_VISION_PROMPT", "").strip() or DEFAULT_VISION_PROMPT
+
+    client = OpenAI(base_url=base_url, api_key=api_key)
+    return {"llm_client": client, "llm_model": model, "llm_prompt": prompt}
 
 # Import MarkItDown - handle both direct execution and module import
 try:
@@ -150,7 +185,7 @@ def convert_file_to_markdown(input_file: str, output_file: Optional[str] = None)
         
         # Use MarkItDown directly instead of subprocess
         try:
-            markitdown = MarkItDown()
+            markitdown = MarkItDown(**_build_llm_kwargs())
             result = markitdown.convert(temp_file)
             output_content = result.markdown if result.markdown else ""
         except Exception as e:

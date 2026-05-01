@@ -36,12 +36,13 @@ dependencies = [
 [project.optional-dependencies]
 all = [
   "python-pptx",
+  "pywin32; sys_platform == 'win32'",
   "mammoth~=1.10.0",
   "pandas",
   "openpyxl",
   "xlrd",
   "lxml",
-  "pdfminer.six",
+  "pymupdf",
   "olefile",
   "pydub",
   "SpeechRecognition",
@@ -49,11 +50,11 @@ all = [
   "azure-ai-documentintelligence",
   "azure-identity"
 ]
-pptx = ["python-pptx"]
+pptx = ["python-pptx", "pywin32; sys_platform == 'win32'"]
 docx = ["mammoth", "lxml"]
 xlsx = ["pandas", "openpyxl"]
 xls = ["pandas", "xlrd"]
-pdf = ["pdfminer.six"]
+pdf = ["pymupdf"]
 outlook = ["olefile"]
 audio-transcription = ["pydub", "SpeechRecognition"]
 youtube-transcription = ["youtube-transcript-api"]
