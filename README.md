@@ -7,6 +7,13 @@
 > [!TIP]
 > MarkItDown now offers an MCP (Model Context Protocol) server for integration with LLM applications like Claude Desktop. See [markitdown-mcp](https://github.com/microsoft/markitdown/tree/main/packages/markitdown-mcp) for more information.
 
+> [!NOTE]
+> **Fork additions** (this branch, on top of upstream MarkItDown):
+> * A Flask **web app** for batch-converting files by path or glob (see [Web App](#web-app)).
+> * **Vision-LLM transcription of graphics** in PDFs and PPTX. Diagrams render to PNG and are transcribed inline as Mermaid / markdown tables / structured text — the .md output stays image-free.
+> * PDF parsing switched from `pdfminer.six` to **PyMuPDF** for layout-aware text extraction and per-page rendering.
+> * PPTX slides containing AutoShapes, SmartArt, FreeForm, ink, or unsupported charts are rendered via **PowerPoint COM** (`pywin32`, Windows + PowerPoint required) and sent to the vision LLM.
+
 > [!IMPORTANT]
 > Breaking changes between 0.0.1 to 0.1.0:
 > * Dependencies are now organized into optional feature-groups (further details below). Use `pip install 'markitdown[all]'` to have backward-compatible behavior. 
@@ -106,11 +113,11 @@ will install only the dependencies for PDF, DOCX, and PPTX files.
 At the moment, the following optional dependencies are available:
 
 * `[all]` Installs all optional dependencies
-* `[pptx]` Installs dependencies for PowerPoint files
+* `[pptx]` Installs dependencies for PowerPoint files (`pywin32` is included on Windows for full-slide rendering)
 * `[docx]` Installs dependencies for Word files
 * `[xlsx]` Installs dependencies for Excel files
 * `[xls]` Installs dependencies for older Excel files
-* `[pdf]` Installs dependencies for PDF files
+* `[pdf]` Installs dependencies for PDF files (PyMuPDF)
 * `[outlook]` Installs dependencies for Outlook messages
 * `[az-doc-intel]` Installs dependencies for Azure Document Intelligence
 * `[audio-transcription]` Installs dependencies for audio transcription of wav and mp3 files
@@ -164,17 +171,49 @@ result = md.convert("test.pdf")
 print(result.text_content)
 ```
 
-To use Large Language Models for image descriptions (currently only for pptx and image files), provide `llm_client` and `llm_model`:
+To use Large Language Models for image descriptions and visual transcription, provide `llm_client` and `llm_model`. The same client is used by:
+
+* **Image** files (caption)
+* **PPTX** pictures (inline transcription instead of `![]()` markdown)
+* **PPTX** slides with AutoShapes / SmartArt / FreeForm / ink / unsupported charts (full slide rendered via PowerPoint COM and transcribed)
+* **PDF** pages that contain drawings or embedded images (page rendered with PyMuPDF and transcribed)
 
 ```python
 from markitdown import MarkItDown
 from openai import OpenAI
 
-client = OpenAI()
-md = MarkItDown(llm_client=client, llm_model="gpt-4o", llm_prompt="optional custom prompt")
-result = md.convert("example.jpg")
+client = OpenAI()  # any OpenAI-compatible endpoint works — set base_url/api_key for Ollama, LM Studio, vLLM, Azure, etc.
+md = MarkItDown(
+    llm_client=client,
+    llm_model="gpt-4o",
+    llm_prompt="optional custom prompt — defaults to a Mermaid/markdown-table/structured-markdown instruction",
+)
+result = md.convert("example.pdf")
 print(result.text_content)
 ```
+
+### Web App
+
+A Flask app for batch-converting local files by path or glob, with parallel workers and live status:
+
+```bash
+python packages/markitdown/src/markitdown/webapp/converter_app.py
+# open http://localhost:5555
+```
+
+The web app reads vision-LLM configuration from environment variables. Vision is silently disabled when `OPENAI_MODEL` is unset.
+
+| Env var                | Purpose                                                      | Example                          |
+| ---------------------- | ------------------------------------------------------------ | -------------------------------- |
+| `OPENAI_MODEL`         | Model id (required to enable vision)                         | `llava:latest`, `gpt-4o`         |
+| `OPENAI_BASE_URL`      | OpenAI-compatible endpoint                                   | `http://localhost:11434/v1`      |
+| `OPENAI_API_KEY`       | Bearer token; sent as `Authorization: Bearer …` automatically | `sk-…` (use `not-needed` locally) |
+| `OPENAI_VISION_PROMPT` | Override the default vision prompt                           | _(any string)_                   |
+
+Output is written as `.md` next to each source file. Extracted graphics are not saved as images — the LLM transcription is inlined as Mermaid (for flow / sequence / org diagrams), markdown tables (for charts and tabular data), or structured markdown.
+
+> [!NOTE]
+> Full-slide PPTX rendering requires Microsoft PowerPoint installed on the same machine and runs only on Windows. Without PowerPoint or on other platforms, picture-level transcription still works; only AutoShape / SmartArt / FreeForm slides are skipped.
 
 ### Docker
 
